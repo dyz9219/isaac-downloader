@@ -19,7 +19,7 @@ jobs:
             platform: darwin/arm64
             artifact_id: darwin-arm64
             output: isaac-downloader
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             platform: linux/amd64
             artifact_id: linux-amd64
             output: isaac-downloader
