@@ -47,6 +47,12 @@ jobs:
           cd frontend
           npm install
 
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.0-dev libglib2.0-dev
+
       - name: Build with Wails
         run: wails build -platform ${{ matrix.platform }}
 
