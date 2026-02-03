@@ -13,12 +13,15 @@ jobs:
         include:
           - os: windows-latest
             platform: windows/amd64
+            artifact_id: windows-amd64
             output: isaac-downloader.exe
           - os: macos-15
             platform: darwin/arm64
-            output: Isaac Downloader
+            artifact_id: darwin-arm64
+            output: isaac-downloader
           - os: ubuntu-latest
             platform: linux/amd64
+            artifact_id: linux-amd64
             output: isaac-downloader
 
     runs-on: ${{ matrix.os }}
@@ -52,7 +55,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-0 libwebkit2gtk-4.1-dev libglib2.0-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libglib2.0-dev libcgi2-dev
 
       - name: Build with Wails
         run: wails build -platform ${{ matrix.platform }}
@@ -60,6 +63,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: isaac-downloader-${{ matrix.platform }}
+          name: isaac-downloader-${{ matrix.artifact_id }}
           path: build/bin/${{ matrix.output }}
           retention-days: 90
