@@ -18,7 +18,7 @@ jobs:
           - os: macos-15
             platform: darwin/arm64
             artifact_id: darwin-arm64
-            output: isaac-downloader
+            output: Isaac Downloader
           - os: ubuntu-latest
             platform: linux/amd64
             artifact_id: linux-amd64
