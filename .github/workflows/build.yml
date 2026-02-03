@@ -18,7 +18,7 @@ jobs:
           - os: macos-15
             platform: darwin/arm64
             artifact_id: darwin-arm64
-            output: Isaac Downloader
+            output: isaac-downloader
           - os: ubuntu-latest
             platform: linux/amd64
             artifact_id: linux-amd64
@@ -55,7 +55,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libglib2.0-dev libcgi2-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libglib2.0-dev
 
       - name: Build with Wails
         run: wails build -platform ${{ matrix.platform }}
