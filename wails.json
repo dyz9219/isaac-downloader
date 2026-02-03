@@ -1,0 +1,14 @@
+{
+  "name": "isaac-downloader",
+  "outputfilename": "isaac-downloader",
+  "frontend:install": "npm install",
+  "frontend:build": "npm run build",
+  "author": {
+    "name": "Isaac Sim Platform"
+  },
+  "info": {
+    "companyName": "Isaac Sim Platform",
+    "productName": "Isaac Downloader",
+    "productVersion": "1.0.0"
+  }
+}

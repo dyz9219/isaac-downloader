@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wails:*)",
+      "Bash(go:*)",
+      "Bash(node:*)",
+      "Bash(dir:*)",
+      "Bash(wsl:*)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(del:*)",
+      "Bash(docker build:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(docker run:*)",
+      "Bash(docker logs:*)",
+      "Bash(git config:*)",
+      "Bash(gh:*)",
+      "Bash(find:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell:*)",
+      "Bash(handle.exe \"D:\\\\workspace\\\\work\\\\bwy\\\\isaac-downloader\\\\build\\\\bin\\\\isaac-downloader.exe\")",
+      "Bash(echo:*)",
+      "Bash(cmd:*)",
+      "Bash(copy:*)",
+      "Bash(npm run build:*)",
+      "Bash(python:*)",
+      "Bash(.\\\\build-windows:*)",
+      "Bash(ls:*)",
+      "Bash(~/go/bin/rsrc:*)",
+      "Bash(start explorer.exe)",
+      "Bash(cmd.exe /c \"docker run --rm -v D:\\\\workspace\\\\work\\\\bwy\\\\isaac-downloader:/workspace -w /workspace golang:1.21 bash -c \"\"apt-get update && apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev && go install github.com/wailsapp/wails/v2/cmd/wails@latest && wails build -platform linux/amd64\"\"\")",
+      "Bash(cmd.exe:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(winget:*)",
+      "Bash(scoop:*)",
+      "Bash(git submodule status:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  },
+  "language": "zh-CN"
+}
