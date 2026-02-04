@@ -188,14 +188,15 @@ func (a *App) GetTasks() []TaskDisplay {
 	return result
 }
 
-func (a *App) StartAll() error {
+func (a *App) StartAll() (int, error) {
 	if a.config == nil {
-		return fmt.Errorf("未加载配置")
+		return 0, fmt.Errorf("未加载配置")
 	}
 
 	// 重置全局 context，使新一轮下载可以正常进行
 	a.engine.ResetGlobalCtx()
 
+	started := 0
 	for _, task := range a.config.Tasks {
 		for _, file := range task.Files {
 			localPath := filepath.Join(a.settings.DownloadPath, file.Path)
@@ -212,10 +213,11 @@ func (a *App) StartAll() error {
 				Status:    backend.StatusPending,
 			}
 			a.engine.StartDownload(downloadTask)
+			started++
 		}
 	}
 
-	return nil
+	return started, nil
 }
 
 func (a *App) PauseAll() {
@@ -227,8 +229,11 @@ func (a *App) GetProgress() ProgressInfo {
 
 	var downloaded, total, speed int64
 	for _, task := range tasks {
-		downloaded += task.DownloadedBytes
-		total += task.TotalBytes
+		// 只统计已开始下载的任务（TotalBytes > 0）
+		if task.TotalBytes > 0 {
+			downloaded += task.DownloadedBytes
+			total += task.TotalBytes
+		}
 		speed += task.Speed
 	}
 
@@ -260,6 +265,23 @@ func (a *App) SelectScriptFile() (string, error) {
 	}
 	if selection == "" {
 		return "", fmt.Errorf("未选择文件")
+	}
+	return selection, nil
+}
+
+func (a *App) SelectScriptFiles() ([]string, error) {
+	selection, err := runtime.OpenMultipleFilesDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "选择下载脚本",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "脚本文件 (*.ps1;*.bat;*.sh)", Pattern: "*.ps1;*.bat;*.sh"},
+			{DisplayName: "所有文件 (*.*)", Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	if len(selection) == 0 {
+		return nil, fmt.Errorf("未选择文件")
 	}
 	return selection, nil
 }

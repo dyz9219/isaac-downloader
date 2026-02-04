@@ -21,6 +21,8 @@ export function SelectDownloadDirectory():Promise<string>;
 
 export function SelectScriptFile():Promise<string>;
 
+export function SelectScriptFiles():Promise<Array<string>>;
+
 export function SetSettings(arg1:main.Settings):Promise<void>;
 
-export function StartAll():Promise<void>;
+export function StartAll():Promise<number>;

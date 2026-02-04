@@ -36,7 +36,19 @@
       "Bash(scoop:*)",
       "Bash(git submodule status:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(cmdkey:*)",
+      "Bash(curl:*)",
+      "Bash(GIT_ASKPASS=true GIT_TERMINAL_PROMPT=false git push:*)",
+      "Bash(~/.git-credentials)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o IdentitiesOnly=yes -o IdentityFile=~/.ssh/id_rsa -o StrictHostKeyChecking=no\" git push:*)",
+      "Bash(git remote get-url:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(tasklist:*)"
     ]
   },
   "language": "zh-CN"

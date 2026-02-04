@@ -49,6 +49,15 @@
   }
 
   $: hasSelection = selectedSet.size > 0;
+  $: allSelected = files.length > 0 && selectedSet.size === files.length;
+
+  function toggleAll() {
+    if (allSelected) {
+      selectedSet = new Set();
+    } else {
+      selectedSet = new Set(files.map(f => f.name));
+    }
+  }
 
   loadFiles();
 </script>
@@ -78,6 +87,11 @@
           <p class="empty-hint">请将 .ps1、.bat 或 .sh 文件放在可执行文件所在目录</p>
         </div>
       {:else}
+        <div class="select-all-bar">
+          <button class="btn-toggle-all" on:click={toggleAll}>
+            {allSelected ? '取消全选' : '全选'}
+          </button>
+        </div>
         <div class="file-list">
           {#each files as file (file.name)}
             <div class="file-item" class:selected={selectedSet.has(file.name)} on:click={() => toggleFile(file)} role="checkbox" aria-checked={selectedSet.has(file.name)} tabindex="0" on:keydown={(e) => e.key === 'Enter' && toggleFile(file)}>
@@ -223,6 +237,26 @@
     font-size: 13px;
     margin-top: 8px;
     opacity: 0.7;
+  }
+
+  .select-all-bar {
+    padding: 8px 12px 0;
+  }
+
+  .btn-toggle-all {
+    padding: 6px 14px;
+    border: 1px solid #e5e5e7;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .btn-toggle-all:hover {
+    background: #f5f5f7;
+    border-color: #d1d1d6;
   }
 
   .file-list {

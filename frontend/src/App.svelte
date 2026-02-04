@@ -118,10 +118,13 @@
   async function browseOtherDirectory() {
     showCustomFileDialog = false;
     try {
-      const result = await window.go.main.App.SelectScriptFile();
-      if (result) {
-        // 浏览其他目录选择的文件，始终替换当前任务
-        await loadScriptFromFile(result, false);
+      const results = await window.go.main.App.SelectScriptFiles();
+      if (results && results.length > 0) {
+        // 全部替换：第一个文件 replace，后续 merge
+        for (let i = 0; i < results.length; i++) {
+          const merge = i > 0;
+          await loadScriptFromFile(results[i], merge);
+        }
       }
     } catch (e) {
       // 用户取消，不做任何处理
@@ -157,12 +160,13 @@
 
   async function startDownload() {
     try {
-      // Calculate total files to download
-      const fileCounts = tasks.map(t => t.fileCount || 0);
-      totalFilesToDownload = fileCounts.reduce((a, b) => a + b, 0);
       completedFiles = 0;
-
-      await window.go.main.App.StartAll();
+      const startedCount = await window.go.main.App.StartAll();
+      totalFilesToDownload = startedCount;
+      if (startedCount === 0) {
+        addLog('所有文件已下载完成');
+        return;
+      }
       isDownloading = true;
       addLog('开始下载');
     } catch (e) {

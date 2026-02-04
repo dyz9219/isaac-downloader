@@ -38,6 +38,10 @@ export function SelectScriptFile() {
   return window['go']['main']['App']['SelectScriptFile']();
 }
 
+export function SelectScriptFiles() {
+  return window['go']['main']['App']['SelectScriptFiles']();
+}
+
 export function SetSettings(arg1) {
   return window['go']['main']['App']['SetSettings'](arg1);
 }
