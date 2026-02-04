@@ -20,7 +20,7 @@ type App struct {
 
 type Settings struct {
 	Concurrent   int    `json:"concurrent"`
-	DownloadPath string `json:"downloadPath"`
+	DownloadPath string `json:"downloadPath"` // 前端使用 downloadPath (小写)
 }
 
 type ScriptInfo struct {
@@ -54,6 +54,21 @@ func NewApp() *App {
 func (a *App) OnStartup(ctx context.Context) {
 	a.ctx = ctx
 
+	// 将相对路径解析为绝对路径
+	if !filepath.IsAbs(a.settings.DownloadPath) {
+		abs, err := filepath.Abs(a.settings.DownloadPath)
+		if err == nil {
+			a.settings.DownloadPath = abs
+		}
+	}
+
+	a.setupEngineCallbacks()
+
+	// 自动检测同目录下的脚本
+	go a.autoDetectScript()
+}
+
+func (a *App) setupEngineCallbacks() {
 	a.engine.SetCallbacks(
 		func(task *backend.DownloadTask) {
 			runtime.EventsEmit(a.ctx, "progress", taskToMap(task))
@@ -68,9 +83,6 @@ func (a *App) OnStartup(ctx context.Context) {
 			})
 		},
 	)
-
-	// 自动检测同目录下的脚本
-	go a.autoDetectScript()
 }
 
 func (a *App) autoDetectScript() {
@@ -181,11 +193,22 @@ func (a *App) StartAll() error {
 		return fmt.Errorf("未加载配置")
 	}
 
+	// 重置全局 context，使新一轮下载可以正常进行
+	a.engine.ResetGlobalCtx()
+
 	for _, task := range a.config.Tasks {
 		for _, file := range task.Files {
+			localPath := filepath.Join(a.settings.DownloadPath, file.Path)
+
+			// 检查文件是否已存在且已完成下载（通过已有任务记录判断）
+			existingTask := a.engine.GetTask(file.URL)
+			if existingTask != nil && existingTask.Status == backend.StatusCompleted {
+				continue
+			}
+
 			downloadTask := &backend.DownloadTask{
 				URL:       file.URL,
-				LocalPath: filepath.Join(a.settings.DownloadPath, file.Path),
+				LocalPath: localPath,
 				Status:    backend.StatusPending,
 			}
 			a.engine.StartDownload(downloadTask)
@@ -196,10 +219,7 @@ func (a *App) StartAll() error {
 }
 
 func (a *App) PauseAll() {
-	tasks := a.engine.GetRunningTasks()
-	for _, task := range tasks {
-		a.engine.PauseDownload(task.URL)
-	}
+	a.engine.PauseAll()
 }
 
 func (a *App) GetProgress() ProgressInfo {
@@ -244,6 +264,19 @@ func (a *App) SelectScriptFile() (string, error) {
 	return selection, nil
 }
 
+func (a *App) SelectDownloadDirectory() (string, error) {
+	selection, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "选择下载目录",
+	})
+	if err != nil {
+		return "", err
+	}
+	if selection == "" {
+		return "", fmt.Errorf("未选择目录")
+	}
+	return selection, nil
+}
+
 // ListScriptFiles returns script files in the executable directory
 func (a *App) ListScriptFiles() ([]FileInfoExtended, error) {
 	exePath, err := os.Executable()
@@ -270,9 +303,15 @@ func (a *App) GetSettings() *Settings {
 }
 
 func (a *App) SetSettings(settings *Settings) {
-	a.settings = settings
+	if settings.Concurrent > 0 {
+		a.settings.Concurrent = settings.Concurrent
+	}
+	if settings.DownloadPath != "" {
+		a.settings.DownloadPath = settings.DownloadPath
+	}
 	if len(a.engine.GetRunningTasks()) == 0 {
-		a.engine = backend.NewDownloadEngine(settings.Concurrent)
+		a.engine = backend.NewDownloadEngine(a.settings.Concurrent)
+		a.setupEngineCallbacks()
 	}
 }
 

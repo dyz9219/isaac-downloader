@@ -30,6 +30,10 @@ export function PauseAll() {
   return window['go']['main']['App']['PauseAll']();
 }
 
+export function SelectDownloadDirectory() {
+  return window['go']['main']['App']['SelectDownloadDirectory']();
+}
+
 export function SelectScriptFile() {
   return window['go']['main']['App']['SelectScriptFile']();
 }

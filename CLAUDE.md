@@ -166,3 +166,31 @@ isaac-sim-backend-service/src/main/resources/installers/downloader/
 - 更新 `extractJsonFromScript()` 中的正则表达式模式
 - 测试所有三种脚本类型（.ps1、.bat、.sh）
 - 如果 URL 包含 `&` 字符，处理 `__AMP__` 替换
+
+## 故障排查规则
+
+故障排查需遵循以下核心规则：
+
+1. **症状-原因分层诊断** - 别在第一层停下
+   - 不仅是修复错误，要理解根本原因
+   - 从表象深入到配置、框架、系统层面
+
+2. **静态分析优先** - 配置文件比日志更诚实
+   - 先检查配置文件（wails.json、package.json、workflow 等）
+   - 配置决定构建行为，日志只是结果
+
+3. **三角验证** - 源码配置 × 构建配置 × 实际输出
+   - 源码配置：wails.json 中的 productName、outputfilename
+   - 构建配置：workflow 中的 matrix 参数
+   - 实际输出：build/bin 目录下的实际文件名
+   - 三者必须一致才能成功
+
+4. **框架默认优先** - 稳定版 > 最新版
+   - Ubuntu 22.04 比 ubuntu-latest 更稳定（包版本确定）
+   - 避免使用 "latest" 类标签，使用明确版本号
+
+5. **问题重构** - 从"怎么修"转向"为什么不一致"
+   - 不是问"如何修复"，而是问"配置之间哪里不一致"
+   - macOS: productName="Isaac Downloader" → 输出 "Isaac Downloader.app"
+   - workflow 期望: "isaac-downloader" → 不匹配
+   - 解决方案是让三者一致，而不是"打补丁"

@@ -34,17 +34,6 @@
           class="setting-input"
         />
       </div>
-
-      <div class="setting-item">
-        <label for="downloadPath">下载路径</label>
-        <input
-          id="downloadPath"
-          type="text"
-          bind:value={localSettings.downloadPath}
-          class="setting-input"
-          placeholder="./downloads"
-        />
-      </div>
     </div>
 
     <div class="settings-footer">

@@ -17,6 +17,8 @@ export function LoadScriptMerge(arg1:string):Promise<main.ScriptInfo>;
 
 export function PauseAll():Promise<void>;
 
+export function SelectDownloadDirectory():Promise<string>;
+
 export function SelectScriptFile():Promise<string>;
 
 export function SetSettings(arg1:main.Settings):Promise<void>;

@@ -1,36 +1,58 @@
 <script>
+  import PathSelector from './PathSelector.svelte';
+
   export let isDownloading = false;
   export let hasScript = false;
+  export let downloadPath = '';
+  export let onPathChange = null;
   export let onStart;
   export let onPause;
   export let onLoadScript;
 </script>
 
 <div class="control-bar">
-  {#if hasScript}
-    {#if !isDownloading}
-      <button class="btn btn-primary" on:click={onStart}>
-        <span class="btn-icon">▶</span>
-        开始下载
-      </button>
-    {:else}
-      <button class="btn btn-warning" on:click={onPause}>
-        <span class="btn-icon">⏸</span>
-        暂停下载
-      </button>
+  <div class="path-area">
+    <PathSelector
+      path={downloadPath}
+      onSelect={onPathChange}
+      disabled={isDownloading} />
+  </div>
+  <div class="button-group">
+    {#if hasScript}
+      {#if !isDownloading}
+        <button class="btn btn-primary" on:click={onStart}>
+          <span class="btn-icon">▶</span>
+          开始下载
+        </button>
+      {:else}
+        <button class="btn btn-warning" on:click={onPause}>
+          <span class="btn-icon">⏸</span>
+          暂停下载
+        </button>
+      {/if}
     {/if}
-  {/if}
-  <button class="btn btn-secondary" on:click={onLoadScript}>
-    <span class="btn-icon">📁</span>
-    加载脚本
-  </button>
+    <button class="btn btn-secondary" on:click={onLoadScript}>
+      <span class="btn-icon">📁</span>
+      加载脚本
+    </button>
+  </div>
 </div>
 
 <style>
   .control-bar {
     display: flex;
+    flex-direction: column;
     gap: 10px;
     margin-bottom: 10px;
+  }
+
+  .path-area {
+    display: flex;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 10px;
   }
 
   .btn {

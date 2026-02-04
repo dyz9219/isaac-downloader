@@ -37,13 +37,17 @@
     });
 
     EventsOn('error', (data) => {
+      completedFiles++;
       addLog(`错误: ${data.url} - ${data.error}`);
+      if (completedFiles >= totalFilesToDownload && totalFilesToDownload > 0) {
+        isDownloading = false;
+        addLog('所有文件处理完成');
+      }
     });
 
     EventsOn('scriptLoaded', (info) => {
       scriptInfo = info;
       loadTasks();
-      addLog('自动检测到脚本文件');
     });
 
     loadSettings();
@@ -53,7 +57,11 @@
   async function loadSettings() {
     try {
       const s = await window.go.main.App.GetSettings();
-      if (s) settings = s;
+      if (s) {
+        console.log('加载设置:', s);
+        console.log('下载路径:', s.downloadPath);
+        settings = { ...s }; // 创建新对象确保响应式更新
+      }
     } catch (e) {
       console.error('加载设置失败', e);
     }
@@ -176,6 +184,21 @@
     showSettings = !showSettings;
   }
 
+  async function handlePathChange(newPath) {
+    try {
+      console.log('设置新路径:', newPath);
+      await window.go.main.App.SetSettings({
+        ...settings,
+        downloadPath: newPath
+      });
+      settings = { ...settings, downloadPath: newPath };
+      console.log('更新后的 settings:', settings);
+      addLog(`下载路径已更新: ${newPath}`);
+    } catch (e) {
+      addLog(`更新路径失败: ${e.message}`);
+    }
+  }
+
   async function saveSettings(newSettings) {
     try {
       await window.go.main.App.SetSettings(newSettings);
@@ -197,7 +220,7 @@
 <div class="app">
   <header class="header">
     <div class="header-left">
-      <h1>Isaac 文件下载器</h1>
+      <h1>文件下载器</h1>
       {#if scriptInfo}
         <span class="badge">{scriptInfo.totalTasks} 个任务, {scriptInfo.totalFiles} 个文件</span>
       {/if}
@@ -217,6 +240,8 @@
       <ControlBar
         {isDownloading}
         hasScript={scriptInfo !== null}
+        downloadPath={settings.downloadPath}
+        onPathChange={handlePathChange}
         onStart={startDownload}
         onPause={pauseDownload}
         onLoadScript={loadScript} />
