@@ -1,5 +1,5 @@
 {
-  "name": "isaac-downloader",
+  "name": "downloader",
   "outputfilename": "downloader",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
