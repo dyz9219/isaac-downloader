@@ -70,9 +70,12 @@ jobs:
             echo "libwebkit2gtk-4.0-dev unavailable, fallback to 4.1 + compatibility alias"
             sudo apt-get install -y libwebkit2gtk-4.1-dev
 
-            pc_path="$(pkg-config --variable pc_path pkg-config | tr ':' '\n' | head -n1)"
-            sudo ln -sf "${pc_path}/webkit2gtk-4.1.pc" "${pc_path}/webkit2gtk-4.0.pc" || true
-            sudo ln -sf "${pc_path}/javascriptcoregtk-4.1.pc" "${pc_path}/javascriptcoregtk-4.0.pc" || true
+            webkit_pc_dir="$(pkg-config --variable=pcfiledir webkit2gtk-4.1)"
+            js_pc_dir="$(pkg-config --variable=pcfiledir javascriptcoregtk-4.1)"
+            echo "webkit pc dir: ${webkit_pc_dir}"
+            echo "javascriptcore pc dir: ${js_pc_dir}"
+            sudo ln -sf "${webkit_pc_dir}/webkit2gtk-4.1.pc" "${webkit_pc_dir}/webkit2gtk-4.0.pc"
+            sudo ln -sf "${js_pc_dir}/javascriptcoregtk-4.1.pc" "${js_pc_dir}/javascriptcoregtk-4.0.pc"
           fi
 
           pkg-config --modversion webkit2gtk-4.0
