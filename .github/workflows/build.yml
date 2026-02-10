@@ -2,6 +2,8 @@ name: Build Isaac Downloader
 
 on:
   push:
+    branches: [ master, main, feature/**, bugfix/** ]
+  pull_request:
     branches: [ master, main ]
   workflow_dispatch:
 
@@ -22,6 +24,10 @@ jobs:
           - os: ubuntu-22.04
             platform: linux/amd64
             artifact_id: linux-amd64
+            output: downloader
+          - os: ubuntu-24.04-arm
+            platform: linux/arm64
+            artifact_id: linux-arm64
             output: downloader
 
     runs-on: ${{ matrix.os }}

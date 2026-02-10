@@ -67,6 +67,26 @@ wails build -platform linux/amd64
 cp build/bin/isaac-downloader ../isaac-sim-backend/isaac-sim-backend-service/src/main/resources/installers/downloader/linux-x64/
 ```
 
+### Linux ARM64
+
+需要在 Linux ARM64 机器上构建:
+
+```bash
+# 1. 安装 Go 和 Wails
+# 2. 安装依赖 (Ubuntu/Debian)
+sudo apt-get install libwebkit2gtk-4.1-dev \
+    build-essential \
+    pkg-config \
+    libgtk-3-dev
+
+# 3. 构建
+cd /path/to/isaac-downloader
+wails build -platform linux/arm64
+
+# 4. 复制到 Java 项目资源目录
+cp build/bin/isaac-downloader ../isaac-sim-backend/isaac-sim-backend-service/src/main/resources/installers/downloader/linux-arm64/
+```
+
 ## 使用 Docker 构建 (替代方案)
 
 如果无法访问对应平台的机器，可以使用 Docker:
@@ -86,6 +106,7 @@ docker run --rm -v ${PWD}/build:/build isaac-downloader-builder
 - [x] Windows x64: `isaac-downloader.exe` - 已复制到 `windows-x64/` 目录
 - [ ] macOS ARM64: `Isaac Downloader` - 待构建
 - [ ] Linux x64: `isaac-downloader` - 待构建
+- [ ] Linux ARM64: `isaac-downloader` - 待构建
 
 ## 验证构建
 
@@ -100,12 +121,15 @@ ls -lh isaac-sim-backend/isaac-sim-backend-service/src/main/resources/installers
 
 # 检查 Linux 版本
 ls -lh isaac-sim-backend/isaac-sim-backend-service/src/main/resources/installers/downloader/linux-x64/
+
+# 检查 Linux ARM64 版本
+ls -lh isaac-sim-backend/isaac-sim-backend-service/src/main/resources/installers/downloader/linux-arm64/
 ```
 
 ## 相关文件
 
 - Wails 配置: `wails.json`
-- 构建脚本: `build-windows.bat`, `build-macos-arm.sh`, `build-linux-x64.sh`
+- 构建脚本: `build-windows.bat`, `build-macos-arm.sh`, `build-linux-x64.sh`, `build-linux-arm64.sh`
 - 主应用: `main.go`, `app.go`
 - 后端逻辑: `backend/downloader.go`, `backend/parser.go`
 - 前端界面: `frontend/src/App.svelte`

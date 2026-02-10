@@ -53,6 +53,12 @@ chmod +x build-linux-x64.sh
 ./build-linux-x64.sh
 ```
 
+#### Linux ARM64
+```bash
+chmod +x build-linux-arm64.sh
+./build-linux-arm64.sh
+```
+
 ### 手动构建（任意平台）
 
 ```bash
@@ -63,6 +69,7 @@ wails build -platform <platform>/<arch>
 - `windows/amd64`
 - `darwin/arm64`
 - `linux/amd64`
+- `linux/arm64`
 
 ## 项目结构
 

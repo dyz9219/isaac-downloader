@@ -47,10 +47,14 @@ chmod +x ./build-macos-arm.sh && ./build-macos-arm.sh
 # Linux x64
 chmod +x ./build-linux-x64.sh && ./build-linux-x64.sh
 
+# Linux ARM64
+chmod +x ./build-linux-arm64.sh && ./build-linux-arm64.sh
+
 # 手动指定平台构建
 wails build -platform windows/amd64
 wails build -platform darwin/arm64
 wails build -platform linux/amd64
+wails build -platform linux/arm64
 ```
 
 ### 输出位置
@@ -59,7 +63,8 @@ wails build -platform linux/amd64
 isaac-sim-backend-service/src/main/resources/installers/downloader/
 ├── windows-x64/isaac-downloader.exe
 ├── darwin-arm64/Isaac Downloader
-└── linux-x64/isaac-downloader
+├── linux-x64/isaac-downloader
+└── linux-arm64/isaac-downloader
 ```
 
 ## 架构设计
