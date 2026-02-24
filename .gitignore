@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# Build
+build/
+dist/
+*.spec.bak
+
+# Testing
+.pytest_cache/
+.tmp-*/
+test-*/
+test/
+tests-work/
+smoke-runs/
+*-smoke/
+temp_test/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Misc
+nul
+*.log
+.DS_Store
+Thumbs.db
+
+# Demo data
+演示*/
+
+# Egg info
+*.egg-info/

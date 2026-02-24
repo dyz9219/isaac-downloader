@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agibot-converter-shell"
+version = "0.1.0"
+description = "A Flet desktop shell for Agibot dataset conversion"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "flet>=0.27,<1.0",
+  "flet-desktop>=0.27,<1.0",
+  "h5py>=3.10",
+  "numpy>=1.26",
+  "opencv-python-headless>=4.9",
+  "rosbags>=0.11",
+  "ray[default]>=2.9",
+  "torch>=2.0",
+  "lerobot>=0.1",
+  "pillow>=10.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=24.0",
+  "isort>=5.13",
+  "mypy>=1.10",
+  "ruff>=0.8",
+  "pytest>=8.0",
+  "pyinstaller>=6.0"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_return_any = true
