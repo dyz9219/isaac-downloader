@@ -6,7 +6,11 @@ from PyInstaller.utils.hooks import collect_submodules
 
 # Use relative path for cross-platform compatibility
 spec_dir = Path(SPECPATH)
-any4lerobot_path = spec_dir.parent / 'any4lerobot'
+any4lerobot_candidates = [
+    spec_dir / 'any4lerobot',
+    spec_dir.parent / 'any4lerobot',
+]
+any4lerobot_path = next((p for p in any4lerobot_candidates if p.exists()), any4lerobot_candidates[0])
 datas = [(str(any4lerobot_path), 'any4lerobot')]
 binaries = []
 hiddenimports = []
