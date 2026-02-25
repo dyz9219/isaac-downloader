@@ -56,18 +56,15 @@ jobs:
           python -c "import PyInstaller,sys; print('PyInstaller', PyInstaller.__version__, 'Python', sys.executable)"
       - name: Build binary
         run: |
-          python -m PyInstaller AgibotConverterShell.spec --noconfirm
+          python -m PyInstaller --noconfirm --onefile --windowed --name AgibotConverterShell --distpath dist --workpath build --collect-all flet --collect-all flet_desktop --collect-all rosbags --collect-submodules rosbags.typesys.stores --collect-data tkinter --add-data "$PWD/any4lerobot:any4lerobot" --add-data "$PWD/assets:assets" src/agibot_converter/main.py
       - name: Make executable
         run: |
-          chmod +x dist/AgibotConverterShell/AgibotConverterShell
-      - name: Create archive
-        run: |
-          cd dist && tar -czvf AgibotConverterShell-Linux-x64.tar.gz AgibotConverterShell
+          chmod +x dist/AgibotConverterShell
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: AgibotConverterShell-Linux-x64
-          path: dist/AgibotConverterShell-Linux-x64.tar.gz
+          path: dist/AgibotConverterShell
 
   build-linux-arm64:
     runs-on: ubuntu-24.04-arm  # GitHub ARM runner
@@ -92,15 +89,12 @@ jobs:
           python -c "import PyInstaller,sys; print('PyInstaller', PyInstaller.__version__, 'Python', sys.executable)"
       - name: Build binary
         run: |
-          python -m PyInstaller AgibotConverterShell.spec --noconfirm
+          python -m PyInstaller --noconfirm --onefile --windowed --name AgibotConverterShell --distpath dist --workpath build --collect-all flet --collect-all flet_desktop --collect-all rosbags --collect-submodules rosbags.typesys.stores --collect-data tkinter --add-data "$PWD/any4lerobot:any4lerobot" --add-data "$PWD/assets:assets" src/agibot_converter/main.py
       - name: Make executable
         run: |
-          chmod +x dist/AgibotConverterShell/AgibotConverterShell
-      - name: Create archive
-        run: |
-          cd dist && tar -czvf AgibotConverterShell-Linux-ARM64.tar.gz AgibotConverterShell
+          chmod +x dist/AgibotConverterShell
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: AgibotConverterShell-Linux-ARM64
-          path: dist/AgibotConverterShell-Linux-ARM64.tar.gz
+          path: dist/AgibotConverterShell
