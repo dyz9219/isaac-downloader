@@ -56,7 +56,11 @@ jobs:
           python -c "import PyInstaller,sys; print('PyInstaller', PyInstaller.__version__, 'Python', sys.executable)"
       - name: Build binary
         run: |
-          python -m PyInstaller --noconfirm --onefile --windowed --name AgibotConverterShell --distpath dist --workpath build --collect-all flet --collect-all flet_desktop --collect-all rosbags --collect-submodules rosbags.typesys.stores --collect-data tkinter --add-data "$PWD/any4lerobot:any4lerobot" --add-data "$PWD/assets:assets" src/agibot_converter/main.py
+          EXTRA_ARGS=()
+          if [ -d "$PWD/assets" ]; then
+            EXTRA_ARGS+=(--add-data "$PWD/assets:assets")
+          fi
+          python -m PyInstaller --noconfirm --onefile --windowed --name AgibotConverterShell --distpath dist --workpath build --collect-all flet --collect-all flet_desktop --collect-all rosbags --collect-submodules rosbags.typesys.stores --collect-data tkinter --add-data "$PWD/any4lerobot:any4lerobot" "${EXTRA_ARGS[@]}" src/agibot_converter/main.py
       - name: Make executable
         run: |
           chmod +x dist/AgibotConverterShell
@@ -89,7 +93,11 @@ jobs:
           python -c "import PyInstaller,sys; print('PyInstaller', PyInstaller.__version__, 'Python', sys.executable)"
       - name: Build binary
         run: |
-          python -m PyInstaller --noconfirm --onefile --windowed --name AgibotConverterShell --distpath dist --workpath build --collect-all flet --collect-all flet_desktop --collect-all rosbags --collect-submodules rosbags.typesys.stores --collect-data tkinter --add-data "$PWD/any4lerobot:any4lerobot" --add-data "$PWD/assets:assets" src/agibot_converter/main.py
+          EXTRA_ARGS=()
+          if [ -d "$PWD/assets" ]; then
+            EXTRA_ARGS+=(--add-data "$PWD/assets:assets")
+          fi
+          python -m PyInstaller --noconfirm --onefile --windowed --name AgibotConverterShell --distpath dist --workpath build --collect-all flet --collect-all flet_desktop --collect-all rosbags --collect-submodules rosbags.typesys.stores --collect-data tkinter --add-data "$PWD/any4lerobot:any4lerobot" "${EXTRA_ARGS[@]}" src/agibot_converter/main.py
       - name: Make executable
         run: |
           chmod +x dist/AgibotConverterShell
