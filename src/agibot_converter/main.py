@@ -944,7 +944,7 @@ def main(page: ft.Page) -> None:
     page.bgcolor = BG
     page.theme_mode = ft.ThemeMode.LIGHT
     page.theme = ft.Theme(font_family=FONT_FAMILY)
-    icon_path = _resolve_asset_path("pku_logo.ico") or _resolve_asset_path("pku_logo.png")
+    icon_path = _resolve_asset_path("app_icon.ico") or _resolve_asset_path("app_icon.png")
     if icon_path:
         page.window.icon = icon_path
     page.add(_build(page))

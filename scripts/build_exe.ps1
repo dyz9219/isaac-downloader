@@ -39,11 +39,8 @@ $resolvedProfile = $Profile.ToLowerInvariant()
 if (-not (Test-Path (Join-Path $any4 "agibot2lerobot\agibot_h5.py"))) {
     throw "Missing bundled any4lerobot source: $any4"
 }
-if (-not (Test-Path (Join-Path $assets "pku_logo.png"))) {
-    throw "Missing app icon asset: $assets\\pku_logo.png"
-}
-if (-not (Test-Path (Join-Path $assets "pku_logo.ico"))) {
-    throw "Missing app icon asset: $assets\\pku_logo.ico"
+if (-not (Test-Path (Join-Path $assets "app_icon.ico"))) {
+    throw "Missing app icon asset: $assets\\app_icon.ico"
 }
 
 $commit = (git rev-parse HEAD).Trim()
@@ -134,7 +131,7 @@ $baseArgs = @(
     "--name", $name,
     "--distpath", $distPath,
     "--workpath", $workPath,
-    "--icon", "$assets\pku_logo.ico",
+    "--icon", "$assets\app_icon.ico",
     "--add-data", "$any4;any4lerobot",
     "--add-data", "$assets;assets",
     "--add-data", "$metaPath;assets",

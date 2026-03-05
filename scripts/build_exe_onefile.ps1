@@ -30,8 +30,8 @@ if ($Clean) {
 if (-not (Test-Path (Join-Path $any4 "agibot2lerobot\agibot_h5.py"))) {
     throw "Missing bundled any4lerobot source: $any4"
 }
-if (-not (Test-Path (Join-Path $assets "pku_logo.ico"))) {
-    throw "Missing app icon asset: $assets\\pku_logo.ico"
+if (-not (Test-Path (Join-Path $assets "app_icon.ico"))) {
+    throw "Missing app icon asset: $assets\\app_icon.ico"
 }
 
 & $py -m PyInstaller `
@@ -52,7 +52,7 @@ if (-not (Test-Path (Join-Path $assets "pku_logo.ico"))) {
   --collect-all rosbags `
   --collect-submodules rosbags.typesys.stores `
   --collect-data tkinter `
-  --icon "$assets\pku_logo.ico" `
+  --icon "$assets\app_icon.ico" `
   --add-data "$any4;any4lerobot" `
   --add-data "$assets;assets" `
   src/agibot_converter/main.py

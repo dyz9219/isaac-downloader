@@ -45,7 +45,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['D:\\workspace\\work\\bwy\\agibot-converter\\assets\\pku_logo.ico'],
+    icon=['assets\\app_icon.ico'],
 )
 coll = COLLECT(
     exe,
