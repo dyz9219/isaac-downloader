@@ -1,0 +1,40 @@
+# 构建镜像
+FROM ubuntu:22.04
+
+# 避免交互式提示
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 安装基础依赖
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    git \
+    build-essential \
+    pkg-config \
+    libwebkit2gtk-4.0-dev \
+    libssl-dev \
+    libgtk-3-dev \
+    libglib2.0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 安装 Go 1.21
+RUN wget https://go.dev/dl/go1.21.6.linux-amd64.tar.gz -O /tmp/go.tar.gz \
+    && tar -C /usr/local -xzf /tmp/go.tar.gz \
+    && rm /tmp/go.tar.gz
+
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV GOPATH="/root/go"
+ENV PATH="${GOPATH}/bin:${PATH}"
+
+# 安装 Node.js 18
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# 安装 Wails CLI
+RUN go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+# 设置工作目录
+WORKDIR /workspace
+
+# 默认命令
+CMD ["bash"]
