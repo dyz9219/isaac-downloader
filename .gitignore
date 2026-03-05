@@ -1,42 +1,41 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
 *.so
-.Python
-.venv/
-venv/
-ENV/
+*.dylib
+*.test
 
-# Build
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build directories
 build/
+bin/
 dist/
-*.spec.bak
 
-# Testing
-.pytest_cache/
-.tmp-*/
-test-*/
-test/
-tests-work/
-smoke-runs/
-*-smoke/
-temp_test/
+# Frontend
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
+*~
 
-# Misc
-nul
-*.log
+# OS
 .DS_Store
 Thumbs.db
 
-# Demo data
-演示*/
-
-# Egg info
-*.egg-info/
+# Wails
+wails_build.log
