@@ -43,7 +43,7 @@ func TestScriptInfoSerialization(t *testing.T) {
 // 目的: 证明任务对象也使用小写字段名
 func TestTaskDisplaySerialization(t *testing.T) {
 	task := &TaskDisplay{
-		TaskId:    2013529099792277505,
+		TaskId:    "2013529099792277505",
 		FileCount: 5,
 	}
 

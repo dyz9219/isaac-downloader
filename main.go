@@ -17,7 +17,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:     "Isaac Downloader",
+		Title:     "Downloader",
 		Width:     480,
 		Height:    600,
 		MinWidth:  480,

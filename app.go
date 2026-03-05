@@ -197,13 +197,20 @@ func (a *App) StartAll() (int, error) {
 	a.engine.ResetGlobalCtx()
 
 	started := 0
+	seenLocalPaths := make(map[string]struct{})
 	for _, task := range a.config.Tasks {
 		for _, file := range task.Files {
 			localPath := filepath.Join(a.settings.DownloadPath, file.Path)
+			pathKey := filepath.Clean(localPath)
+			if _, seen := seenLocalPaths[pathKey]; seen {
+				continue
+			}
+			seenLocalPaths[pathKey] = struct{}{}
 
-			// 检查文件是否已存在且已完成下载（通过已有任务记录判断）
-			existingTask := a.engine.GetTask(file.URL)
-			if existingTask != nil && existingTask.Status == backend.StatusCompleted {
+			existingTask := a.engine.GetTaskByLocalPath(localPath)
+			if existingTask != nil && (existingTask.Status == backend.StatusCompleted ||
+				existingTask.Status == backend.StatusPending ||
+				existingTask.Status == backend.StatusDownloading) {
 				continue
 			}
 

@@ -10,10 +10,10 @@ func TestParseRealScript(t *testing.T) {
 	// 读取真实脚本文件
 	content, err := os.ReadFile("../build/bin/演示用抓取任务_20260202_135655.ps1")
 	if err != nil {
-		t.Fatalf("读取脚本文件失败: %v", err)
+		t.Skipf("跳过测试：读取脚本文件失败: %v", err)
 	}
 
-	config, err := ParseScript(string(content))
+	config, err := ParseScript(string(content), "../build/bin/演示用抓取任务_20260202_135655.ps1")
 	if err != nil {
 		t.Fatalf("ParseScript 失败: %v", err)
 	}

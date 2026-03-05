@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -64,8 +66,14 @@ func (e *DownloadEngine) SetCallbacks(onProgress, onComplete func(*DownloadTask)
 }
 
 func (e *DownloadEngine) StartDownload(task *DownloadTask) {
+	taskKey := normalizePathKey(task.LocalPath)
+
 	e.mu.Lock()
-	e.runningTasks[task.URL] = task
+	if existing := e.runningTasks[taskKey]; existing != nil && isActiveTask(existing) {
+		e.mu.Unlock()
+		return
+	}
+	e.runningTasks[taskKey] = task
 	e.mu.Unlock()
 
 	go func() {
@@ -106,16 +114,22 @@ func (e *DownloadEngine) ResetGlobalCtx() {
 func (e *DownloadEngine) ClearCompletedTasks() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	for url, task := range e.runningTasks {
+	for key, task := range e.runningTasks {
 		if task.Status == StatusCompleted {
-			delete(e.runningTasks, url)
+			delete(e.runningTasks, key)
 		}
 	}
 }
 
 func (e *DownloadEngine) PauseDownload(url string) {
 	e.mu.RLock()
-	task := e.runningTasks[url]
+	var task *DownloadTask
+	for _, t := range e.runningTasks {
+		if t.URL == url {
+			task = t
+			break
+		}
+	}
 	e.mu.RUnlock()
 
 	if task != nil && task.cancel != nil {
@@ -308,7 +322,18 @@ func (e *DownloadEngine) handleError(task *DownloadTask, err error) {
 func (e *DownloadEngine) GetTask(url string) *DownloadTask {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.runningTasks[url]
+	for _, task := range e.runningTasks {
+		if task.URL == url {
+			return task
+		}
+	}
+	return nil
+}
+
+func (e *DownloadEngine) GetTaskByLocalPath(localPath string) *DownloadTask {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.runningTasks[normalizePathKey(localPath)]
 }
 
 func (e *DownloadEngine) GetRunningTasks() []*DownloadTask {
@@ -334,4 +359,24 @@ func (t *DownloadTask) ToMap() map[string]any {
 		"status":          string(t.Status),
 		"speed":           t.Speed,
 	}
+}
+
+func normalizePathKey(localPath string) string {
+	if localPath == "" {
+		return ""
+	}
+	cleaned := filepath.Clean(localPath)
+	if abs, err := filepath.Abs(cleaned); err == nil {
+		cleaned = abs
+	}
+	if runtime.GOOS == "windows" {
+		cleaned = strings.ToLower(cleaned)
+	}
+	return cleaned
+}
+
+func isActiveTask(task *DownloadTask) bool {
+	task.mu.Lock()
+	defer task.mu.Unlock()
+	return task.Status == StatusPending || task.Status == StatusDownloading
 }

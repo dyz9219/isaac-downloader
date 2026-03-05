@@ -48,7 +48,10 @@
       "Bash(GIT_SSH_COMMAND=\"ssh -o IdentitiesOnly=yes -o IdentityFile=~/.ssh/id_rsa -o StrictHostKeyChecking=no\" git push:*)",
       "Bash(git remote get-url:*)",
       "WebFetch(domain:github.com)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "Bash(where:*)",
+      "Bash(magick:*)",
+      "Bash(.\\\\build-windows.bat:*)"
     ]
   },
   "language": "zh-CN"
