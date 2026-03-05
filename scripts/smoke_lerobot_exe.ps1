@@ -13,7 +13,9 @@ Set-Location $root
 
 $venv = Join-Path $root ".venv"
 $py = Join-Path $venv "Scripts\python.exe"
-$any4 = Join-Path (Split-Path $root -Parent) "any4lerobot"
+$any4Local = Join-Path $root "any4lerobot"
+$any4Parent = Join-Path (Split-Path $root -Parent) "any4lerobot"
+$any4 = if (Test-Path (Join-Path $any4Local "agibot2lerobot\agibot_h5.py")) { $any4Local } else { $any4Parent }
 $distPath = Join-Path $root "dist-smoke"
 $workPath = Join-Path $root "build-smoke"
 $exe = Join-Path $distPath "AgibotConverterShell\AgibotConverterShell.exe"
@@ -52,6 +54,12 @@ if (-not $SkipBuild) {
       --workpath $workPath `
       --collect-all flet `
       --collect-all flet_desktop `
+      --collect-all ray `
+      --collect-all torch `
+      --collect-all lerobot `
+      --collect-all agibot_utils `
+      --collect-all psutil `
+      --hidden-import psutil._psutil_windows `
       --collect-all rosbags `
       --collect-submodules rosbags.typesys.stores `
       --add-data "$any4;any4lerobot" `
@@ -64,6 +72,13 @@ if (-not (Test-Path $exe)) {
 
 if (-not (Test-Path $InputPath)) {
     throw "Input path not found: $InputPath"
+}
+
+foreach ($healthVersion in @("v3.0", "v2.1", "v2.0")) {
+    $healthProc = Start-Process -FilePath $exe -ArgumentList @("--internal-run-any4-health", "--version", $healthVersion) -Wait -PassThru -WindowStyle Hidden
+    if ($healthProc.ExitCode -ne 0) {
+        throw "ANY4 health check failed for version: $healthVersion"
+    }
 }
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"

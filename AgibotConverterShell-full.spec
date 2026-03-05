@@ -3,7 +3,7 @@ from PyInstaller.utils.hooks import collect_data_files
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('D:\\workspace\\work\\bwy\\agibot-converter\\any4lerobot', 'any4lerobot'), ('D:\\workspace\\work\\bwy\\agibot-converter\\assets', 'assets')]
+datas = [('D:\\workspace\\work\\bwy\\agibot-converter\\any4lerobot', 'any4lerobot'), ('D:\\workspace\\work\\bwy\\agibot-converter\\assets', 'assets'), ('D:\\workspace\\work\\bwy\\agibot-converter\\build\\build-meta\\build_meta.json', 'assets')]
 binaries = []
 hiddenimports = ['psutil._psutil_windows']
 datas += collect_data_files('tkinter')
@@ -17,6 +17,8 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('torch')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('lerobot')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('jsonlines')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('agibot_utils')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
@@ -46,7 +48,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='AgibotConverterShell',
+    name='AgibotConverterShell-full',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -66,5 +68,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='AgibotConverterShell',
+    name='AgibotConverterShell-full',
 )

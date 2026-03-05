@@ -4,18 +4,25 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import shutil
 import sys
+from pathlib import Path
 
 import flet as ft
 
 try:
+    from .any4_health import check_any4_runtime
     from .any4lerobot_bridge import run_any4lerobot_cli
     from .backend import ConversionBackend, build_options
     from .models import TaskStatus
+    from .process_tracker import terminate_all_children
 except ImportError:
+    from agibot_converter.any4_health import check_any4_runtime
     from agibot_converter.any4lerobot_bridge import run_any4lerobot_cli
     from agibot_converter.backend import ConversionBackend, build_options
     from agibot_converter.models import TaskStatus
+    from agibot_converter.process_tracker import terminate_all_children
 
 BG = "#f5f5f7"
 PANEL = "#FFFFFF"
@@ -38,6 +45,20 @@ WIDTH_L = 146
 CTRL_HEIGHT = 34
 BTN_HEIGHT = 34
 RADIUS = 6
+
+
+def _resolve_asset_path(name: str) -> str:
+    candidates: list[Path] = []
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "assets" / name)
+    here = Path(__file__).resolve()
+    candidates.append(here.parents[2] / "assets" / name)
+    candidates.append(Path.cwd() / "assets" / name)
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return ""
 
 
 def _card(content: ft.Control) -> ft.Container:
@@ -174,7 +195,19 @@ def _uniform_input_shell(control: ft.Control, width: int) -> ft.Container:
 
 def _build(page: ft.Page) -> ft.Control:
     backend = ConversionBackend()
-    state = {"target": "LeRobot", "plans": [], "expanded": set(), "show_failed_only": False}
+    state = {
+        "target": "LeRobot",
+        "plans": [],
+        "expanded": set(),
+        "show_failed_only": False,
+        "starting": False,
+        "prechecking": False,
+        "running": False,
+        "paused": False,
+        "cancelled": False,
+        "stopping": False,
+        "start_context": None,
+    }
     task_total_text = ft.Text("总进度 0%", size=SUB_SIZE, color=MUTED)
     task_rows = ft.Column(spacing=6)
     badge_text = ft.Text("0 个任务", size=BADGE_SIZE, color=MUTED, weight=ft.FontWeight.W_500)
@@ -256,10 +289,20 @@ def _build(page: ft.Page) -> ft.Control:
     bag_type_shell = _uniform_input_shell(bag_type, WIDTH_M)
     bag_type.visible = False
 
-    concurrent = ft.TextField(value="4", width=120, dense=True, height=CTRL_HEIGHT, text_size=BODY_SIZE, border_color="#D1D1D3")
+    concurrent = ft.DropdownM2(
+        value="4",
+        dense=True,
+        height=CTRL_HEIGHT - 2,
+        width=88,
+        text_size=BODY_SIZE,
+        border_width=0,
+        content_padding=ft.padding.only(left=0, right=0, top=8, bottom=8),
+        options=[ft.dropdownm2.Option(str(i)) for i in range(1, 9)],
+    )
+    concurrent_shell = _uniform_input_shell(concurrent, WIDTH_S)
 
-    seg_left = ft.Container(width=WIDTH_L, border_radius=RADIUS, padding=ft.padding.symmetric(horizontal=14, vertical=7), alignment=ft.Alignment(0, 0))
-    seg_right = ft.Container(width=WIDTH_L, border_radius=RADIUS, padding=ft.padding.symmetric(horizontal=14, vertical=7), alignment=ft.Alignment(0, 0))
+    seg_left = ft.Container(width=170, border_radius=RADIUS, padding=ft.padding.symmetric(horizontal=14, vertical=7), alignment=ft.Alignment(0, 0))
+    seg_right = ft.Container(width=170, border_radius=RADIUS, padding=ft.padding.symmetric(horizontal=14, vertical=7), alignment=ft.Alignment(0, 0))
 
     row_le = ft.Row(
         spacing=10,
@@ -367,6 +410,17 @@ def _build(page: ft.Page) -> ft.Control:
         row_rb.visible = not is_le
         bag_type.visible = not is_le
 
+    def _build_opts():
+        return build_options(
+            input_path=source.value,
+            output_path=output.value,
+            target=state["target"],
+            version=version.value or "v3.0",
+            fps=fps.value or "30",
+            bag_type=bag_type.value or "MCAP",
+            concurrency=concurrent.value or "4",
+        )
+
     def _precheck(_: ft.ControlEvent) -> None:
         if not source.value.strip() or not output.value.strip():
             preflight.value = "预检失败：请先选择输入路径和输出路径"
@@ -378,19 +432,12 @@ def _build(page: ft.Page) -> ft.Control:
         page.update()
 
         def _work() -> None:
-            opts = build_options(
-                input_path=source.value,
-                output_path=output.value,
-                target=state["target"],
-                version=version.value or "v3.0",
-                fps=fps.value or "30",
-                bag_type=bag_type.value or "MCAP",
-                concurrency=concurrent.value or "4",
-            )
+            opts = _build_opts()
             result = backend.precheck(opts)
             state["plans"] = result.tasks
             detect.value = f"识别: 就绪 {result.ready}, 跳过 {result.skipped}, 阻断 {result.blocked}"
             _refresh_task_panel()
+            _sync_action_buttons()
             if result.ok:
                 preflight.value = "预检通过"
                 preflight.color = SUCCESS
@@ -402,35 +449,214 @@ def _build(page: ft.Page) -> ft.Control:
 
         page.run_thread(_work)
 
-    def _start_convert(_: ft.ControlEvent) -> None:
-        if not state["plans"]:
-            preflight.value = "请先预检"
-            preflight.color = ERROR
-            page.update()
-            return
-        opts = build_options(
-            input_path=source.value,
-            output_path=output.value,
-            target=state["target"],
-            version=version.value or "v3.0",
-            fps=fps.value or "30",
-            bag_type=bag_type.value or "MCAP",
-            concurrency=concurrent.value or "4",
+    def _show_partial_continue_dialog(opts, ready: int, skipped: int, blocked: int) -> None:
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("预检结果"),
+            content=ft.Text(f"可执行 {ready}，跳过 {skipped}，阻断 {blocked}。\n是否继续转换可执行任务？"),
+            actions=[],
+            actions_alignment=ft.MainAxisAlignment.END,
         )
+
+        def _cancel(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            state["starting"] = False
+            state["start_context"] = None
+            preflight.value = "已取消：未开始转换"
+            preflight.color = MUTED
+            _sync_action_buttons()
+            page.update()
+
+        def _ok(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            _run_convert_with_plans(opts)
+
+        dlg.actions = [_button("取消", _cancel), _button("继续转换", _ok, primary=True)]
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
+    def _show_conflict_dialog(opts, conflict_tasks: list[object]) -> None:
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("检测到重复输出"),
+            content=ft.Text(f"检测到 {len(conflict_tasks)} 个输出目录已存在。\n请选择本次统一处理策略。"),
+            actions=[],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        def _cancel(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            state["starting"] = False
+            state["start_context"] = None
+            preflight.value = "已取消：未开始转换"
+            preflight.color = MUTED
+            _sync_action_buttons()
+            page.update()
+
+        def _apply_and_continue(overwrite: bool) -> None:
+            for task in state["plans"]:
+                is_conflict = task in conflict_tasks
+                if not is_conflict:
+                    continue
+                if overwrite:
+                    if task.output_dir.exists():
+                        shutil.rmtree(task.output_dir, ignore_errors=True)
+                    task.status = TaskStatus.PENDING
+                    task.reasons = [r for r in task.reasons if "目标目录已存在" not in r]
+                    task.reasons.append("用户选择覆盖已有目录")
+                else:
+                    task.status = TaskStatus.SKIPPED
+                    if "用户选择跳过已有目录" not in task.reasons:
+                        task.reasons.append("用户选择跳过已有目录")
+
+            ready = len([p for p in state["plans"] if p.status is TaskStatus.PENDING])
+            skipped = len([p for p in state["plans"] if p.status is TaskStatus.SKIPPED])
+            blocked = len([p for p in state["plans"] if p.status is TaskStatus.BLOCKED])
+            detect.value = f"识别: 就绪 {ready}, 跳过 {skipped}, 阻断 {blocked}"
+            _refresh_task_panel()
+            _sync_action_buttons()
+            page.update()
+
+            if ready <= 0:
+                state["starting"] = False
+                state["start_context"] = None
+                preflight.value = "预检失败：无可执行任务"
+                preflight.color = ERROR
+                _sync_action_buttons()
+                page.update()
+                return
+
+            if blocked > 0 or skipped > 0:
+                _show_partial_continue_dialog(opts, ready, skipped, blocked)
+            else:
+                _run_convert_with_plans(opts)
+
+        def _overwrite(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            _apply_and_continue(True)
+
+        def _skip(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            _apply_and_continue(False)
+
+        dlg.actions = [_button("取消", _cancel), _button("跳过全部", _skip), _button("覆盖全部", _overwrite, primary=True)]
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
+    def _run_convert_with_plans(opts) -> None:
+        state["cancelled"] = False
+        state["paused"] = False
+        state["stopping"] = False
+        state["starting"] = False
+        state["prechecking"] = False
+        state["running"] = True
+        state["start_context"] = None
+        try:
+            page.window.prevent_close = True
+        except Exception:
+            pass
         preflight.value = "转换中..."
         preflight.color = PRIMARY
+        _sync_action_buttons()
         page.update()
 
         def _work() -> None:
-            summary = backend.run(opts, state["plans"], on_progress=_on_task_progress)
-            if summary.failed > 0:
-                preflight.value = f"完成：成功 {summary.success}，失败 {summary.failed}，跳过 {summary.skipped}"
-                preflight.color = ERROR
-            else:
-                preflight.value = f"完成：成功 {summary.success}，跳过 {summary.skipped}"
-                preflight.color = SUCCESS
-            _refresh_task_panel()
+            try:
+                summary = backend.run(
+                    opts,
+                    state["plans"],
+                    on_progress=_on_task_progress,
+                    should_pause=lambda: bool(state["paused"]),
+                    should_cancel=lambda: bool(state["cancelled"]),
+                )
+                if state["cancelled"]:
+                    preflight.value = f"已取消：成功 {summary.success}，失败 {summary.failed}，跳过 {summary.skipped}"
+                    preflight.color = MUTED
+                elif summary.failed > 0:
+                    preflight.value = f"完成：成功 {summary.success}，失败 {summary.failed}，跳过 {summary.skipped}"
+                    preflight.color = ERROR
+                else:
+                    preflight.value = f"完成：成功 {summary.success}，跳过 {summary.skipped}"
+                    preflight.color = SUCCESS
+                _refresh_task_panel()
+                page.update()
+            finally:
+                state["running"] = False
+                state["paused"] = False
+                state["stopping"] = False
+                state["prechecking"] = False
+                state["starting"] = False
+                state["start_context"] = None
+                try:
+                    page.window.prevent_close = False
+                except Exception:
+                    pass
+                _sync_action_buttons()
+                page.update()
+
+        page.run_thread(_work)
+
+    def _start_convert(_: ft.ControlEvent) -> None:
+        if state["running"] or state["starting"] or state["prechecking"] or state["stopping"]:
+            return
+        if not source.value.strip() or not output.value.strip():
+            preflight.value = "预检失败：请先选择输入路径和输出路径"
+            preflight.color = ERROR
             page.update()
+            return
+        opts = _build_opts()
+        state["starting"] = True
+        state["prechecking"] = True
+        state["cancelled"] = False
+        state["paused"] = False
+        state["stopping"] = False
+        state["start_context"] = {"opts": opts}
+        preflight.value = "预检中..."
+        preflight.color = PRIMARY
+        _sync_action_buttons()
+        page.update()
+
+        def _work() -> None:
+            try:
+                result = backend.precheck(opts)
+                state["plans"] = result.tasks
+                detect.value = f"识别: 就绪 {result.ready}, 跳过 {result.skipped}, 阻断 {result.blocked}"
+                _refresh_task_panel()
+                _sync_action_buttons()
+
+                if result.ready <= 0:
+                    reason = result.global_errors[0] if result.global_errors else "无可执行任务"
+                    preflight.value = f"预检失败：{reason}"
+                    preflight.color = ERROR
+                    state["prechecking"] = False
+                    state["starting"] = False
+                    state["start_context"] = None
+                    _sync_action_buttons()
+                    page.update()
+                    return
+
+                conflict_tasks = [
+                    p for p in state["plans"] if p.status is TaskStatus.BLOCKED and any("目标目录已存在" in r for r in p.reasons)
+                ]
+                state["prechecking"] = False
+                _sync_action_buttons()
+                page.update()
+
+                if conflict_tasks:
+                    _show_conflict_dialog(opts, conflict_tasks)
+                    return
+
+                if result.blocked > 0 or result.skipped > 0:
+                    _show_partial_continue_dialog(opts, result.ready, result.skipped, result.blocked)
+                else:
+                    _run_convert_with_plans(opts)
+            finally:
+                if state["prechecking"]:
+                    state["prechecking"] = False
+                    _sync_action_buttons()
+                    page.update()
 
         page.run_thread(_work)
 
@@ -445,12 +671,81 @@ def _build(page: ft.Page) -> ft.Control:
         page.update()
 
     start_btn = _button("开始转换", primary=True)
-    start_btn.width = WIDTH_L
+    start_btn.width = 160
     start_btn.on_click = _start_convert
-    precheck_btn = _button("预检", _precheck)
-    retry_btn = _button("重试失败项")
+    pause_resume_btn = _button("暂停")
+    pause_resume_btn.width = 120
+    stop_menu_item = ft.PopupMenuItem(content=ft.Text("停止"))
+    precheck_menu_item = ft.PopupMenuItem(content=ft.Text("预检"))
+    retry_menu_item = ft.PopupMenuItem(content=ft.Text("重试失败项"))
+    more_btn = ft.PopupMenuButton(
+        icon=ft.Icons.MORE_HORIZ,
+        icon_size=18,
+        tooltip="更多",
+        items=[stop_menu_item, precheck_menu_item, retry_menu_item],
+        menu_position=ft.PopupMenuPosition.UNDER,
+    )
+
+    def _sync_action_buttons() -> None:
+        starting = bool(state["starting"])
+        prechecking = bool(state["prechecking"])
+        running = bool(state["running"])
+        paused = bool(state["paused"])
+        stopping = bool(state["stopping"])
+        has_failed = any(p.status is TaskStatus.FAILED for p in state["plans"])
+
+        start_btn.disabled = running or stopping or starting or prechecking
+        pause_resume_btn.disabled = (not running) or stopping or starting or prechecking
+        pause_resume_btn.text = "继续" if paused else "暂停"
+
+        stop_menu_item.disabled = (not running) or stopping
+        precheck_menu_item.disabled = stopping or starting or prechecking
+        retry_menu_item.disabled = running or starting or prechecking or (not has_failed)
+        more_btn.disabled = stopping or starting or prechecking
+
+    def _pause_convert(_: ft.ControlEvent) -> None:
+        if not state["running"]:
+            return
+        if state["paused"]:
+            return
+        state["paused"] = True
+        preflight.value = "转换已暂停（当前任务完成后停止派发）"
+        preflight.color = MUTED
+        _sync_action_buttons()
+        page.update()
+
+    def _resume_convert(_: ft.ControlEvent) -> None:
+        if not state["running"]:
+            return
+        state["paused"] = False
+        preflight.value = "已继续转换"
+        preflight.color = PRIMARY
+        _sync_action_buttons()
+        page.update()
+
+    def _toggle_pause_resume(_: ft.ControlEvent) -> None:
+        if not state["running"] or state["stopping"]:
+            return
+        if state["paused"]:
+            _resume_convert(_)
+        else:
+            _pause_convert(_)
+
+    def _stop_convert(_: ft.ControlEvent) -> None:
+        if not state["running"]:
+            return
+        state["cancelled"] = True
+        state["paused"] = False
+        state["stopping"] = True
+        terminate_all_children()
+        preflight.value = "停止中..."
+        preflight.color = MUTED
+        _sync_action_buttons()
+        page.update()
 
     def _retry_failed(_: ft.ControlEvent) -> None:
+        if state["running"] or state["starting"] or state["prechecking"] or state["stopping"]:
+            return
         failed = [p for p in state["plans"] if p.status is TaskStatus.FAILED]
         if not failed:
             preflight.value = "无失败任务可重试"
@@ -462,30 +757,25 @@ def _build(page: ft.Page) -> ft.Control:
             p.reasons.clear()
             p.attempts = 0
         _refresh_task_panel()
-        _start_convert(_)
+        opts = _build_opts()
+        _run_convert_with_plans(opts)
 
-    retry_btn.on_click = _retry_failed
+    def _menu_precheck(_: ft.ControlEvent) -> None:
+        if state["stopping"]:
+            return
+        if state["running"] and (not state["paused"]):
+            _pause_convert(_)
+        _precheck(_)
 
-    def _close_settings() -> None:
-        dlg.open = False
-        page.update()
+    pause_resume_btn.on_click = _toggle_pause_resume
+    stop_menu_item.on_click = _stop_convert
+    precheck_menu_item.on_click = _menu_precheck
+    retry_menu_item.on_click = _retry_failed
+    _sync_action_buttons()
 
-    dlg = ft.AlertDialog(
-        modal=True,
-        title=ft.Text("配置", size=TITLE_SIZE, color=TEXT, weight=ft.FontWeight.W_600),
-        content=ft.Column(tight=True, spacing=8, controls=[ft.Text("并发任务数", size=BODY_SIZE, color=TEXT), concurrent]),
-        actions=[_button("取消", lambda _: _close_settings()), _button("保存", lambda _: _close_settings(), primary=True)],
-        actions_alignment=ft.MainAxisAlignment.END,
-    )
-
-    def _open_settings(_: ft.ControlEvent) -> None:
-        page.dialog = dlg
-        dlg.open = True
-        page.update()
-
-    seg_left.content = ft.Text("LeRobot", size=BODY_SIZE, color=TEXT, weight=ft.FontWeight.W_500)
+    seg_left.content = ft.Text("AgiBot 转 LeRobot", size=BODY_SIZE, color=TEXT, weight=ft.FontWeight.W_500, no_wrap=True)
     seg_left.on_click = _choose_l
-    seg_right.content = ft.Text("Rosbag", size=BODY_SIZE, color=TEXT, weight=ft.FontWeight.W_500)
+    seg_right.content = ft.Text("AgiBot 转 Rosbag", size=BODY_SIZE, color=TEXT, weight=ft.FontWeight.W_500, no_wrap=True)
     seg_right.on_click = _choose_r
     _sync_target()
 
@@ -502,10 +792,81 @@ def _build(page: ft.Page) -> ft.Control:
                     vertical_alignment=ft.CrossAxisAlignment.CENTER,
                     controls=[ft.Text("文件转换器", size=TITLE_SIZE, color=TEXT, weight=ft.FontWeight.W_600), _badge_text_container(badge_text)],
                 ),
-                ft.IconButton(icon=ft.Icons.SETTINGS_OUTLINED, icon_size=18, on_click=_open_settings),
+                ft.Container(),
             ],
         ),
     )
+
+    def _close_window_now() -> None:
+        try:
+            page.window.prevent_close = False
+        except Exception:
+            pass
+        if hasattr(page.window, "close"):
+            page.window.close()
+        elif hasattr(page.window, "destroy"):
+            page.window.destroy()
+
+    def _force_stop_then_close() -> None:
+        state["cancelled"] = True
+        state["stopping"] = True
+        terminate_all_children()
+        _sync_action_buttons()
+        _close_window_now()
+
+    def _confirm_stop_and_close() -> None:
+        dlg = ft.AlertDialog(
+            modal=True,
+            title=ft.Text("确认关闭"),
+            content=ft.Text("当前正在转换，是否直接停止并关闭？"),
+            actions=[],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+
+        def _no(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            page.update()
+
+        def _yes(_: ft.ControlEvent) -> None:
+            dlg.open = False
+            _force_stop_then_close()
+
+        dlg.actions = [_button("取消", _no), _button("停止并关闭", _yes, primary=True)]
+        page.dialog = dlg
+        dlg.open = True
+        page.update()
+
+    def _on_window_event(e: ft.WindowEvent) -> None:
+        data = str(getattr(e, "data", "")).lower()
+        normalized = data.replace("-", "_")
+        is_close_event = (
+            normalized in {"close", "close_request", "window_close", "window_close_request"}
+            or "close" in normalized
+        )
+        if not is_close_event:
+            return
+        is_busy = bool(state["running"] or state["starting"] or state["prechecking"])
+        if not is_busy:
+            _close_window_now()
+            return
+
+        # Paused state should close immediately with force stop, no extra prompt.
+        if bool(state["paused"]):
+            _force_stop_then_close()
+            return
+
+        # Active execution path: ask for confirmation before force stop + close.
+        _confirm_stop_and_close()
+
+    try:
+        page.window.prevent_close = False
+    except Exception:
+        pass
+    try:
+        page.window.on_event = _on_window_event
+    except Exception:
+        # Backward compatibility for older flet versions.
+        page.on_window_event = _on_window_event
 
     task_panel = _card(
         ft.Column(
@@ -526,7 +887,17 @@ def _build(page: ft.Page) -> ft.Control:
         ft.Column(
             spacing=10,
             controls=[
-                ft.Row(alignment=ft.MainAxisAlignment.SPACE_BETWEEN, controls=[ft.Text("转换配置", size=BODY_SIZE, color=TEXT, weight=ft.FontWeight.W_600), detect]),
+                ft.Row(
+                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                    controls=[
+                        ft.Text("转换配置", size=BODY_SIZE, color=TEXT, weight=ft.FontWeight.W_600),
+                        ft.Row(
+                            spacing=8,
+                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+                            controls=[detect, _inline_labeled_field("并发", concurrent_shell)],
+                        ),
+                    ],
+                ),
                 _path_selector("输入路径", source, _pick_source),
                 _path_selector("输出路径", output, _pick_output),
                 ft.Row(spacing=8, controls=[seg_left, seg_right]),
@@ -534,7 +905,7 @@ def _build(page: ft.Page) -> ft.Control:
                 row_rb,
                 ft.Row(
                     spacing=10,
-                    controls=[start_btn, precheck_btn, retry_btn],
+                    controls=[start_btn, pause_resume_btn, more_btn],
                 ),
                 preflight,
             ],
@@ -564,7 +935,7 @@ def _badge_text_container(text_control: ft.Text) -> ft.Container:
 
 
 def main(page: ft.Page) -> None:
-    page.title = "AgiBot Converter"
+    page.title = "Converter"
     page.window.width = 560
     page.window.height = 800
     page.window.min_width = 480
@@ -573,6 +944,9 @@ def main(page: ft.Page) -> None:
     page.bgcolor = BG
     page.theme_mode = ft.ThemeMode.LIGHT
     page.theme = ft.Theme(font_family=FONT_FAMILY)
+    icon_path = _resolve_asset_path("pku_logo.ico") or _resolve_asset_path("pku_logo.png")
+    if icon_path:
+        page.window.icon = icon_path
     page.add(_build(page))
 
 
@@ -637,6 +1011,39 @@ def _run_internal_rosbag_health_cli(argv: list[str]) -> int:
     return 0
 
 
+def _run_internal_any4_health_cli(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="agibot-converter-any4-health")
+    parser.add_argument("--version", default="v3.0", choices=["v3.0", "v2.1", "v2.0"])
+    args = parser.parse_args(argv)
+
+    result = check_any4_runtime(args.version)
+    if result.ok:
+        print("ANY4_HEALTH_OK")
+        print(result.diagnostic)
+        return 0
+
+    print("ANY4_HEALTH_FAIL")
+    print(result.diagnostic)
+    return 1
+
+
+def _run_internal_build_info_cli(argv: list[str]) -> int:
+    del argv
+    info_path = _resolve_asset_path("build_meta.json")
+    if not info_path:
+        print("BUILD_INFO_FAIL")
+        print("missing assets/build_meta.json")
+        return 1
+    try:
+        info = json.loads(Path(info_path).read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        print("BUILD_INFO_FAIL")
+        print(str(exc))
+        return 1
+    print(json.dumps(info, ensure_ascii=False))
+    return 0
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--internal-run-any4lerobot":
         raise SystemExit(run_any4lerobot_cli(sys.argv[2:]))
@@ -644,4 +1051,8 @@ if __name__ == "__main__":
         raise SystemExit(_run_internal_conversion_cli(sys.argv[2:]))
     if len(sys.argv) > 1 and sys.argv[1] == "--internal-run-rosbag-health":
         raise SystemExit(_run_internal_rosbag_health_cli(sys.argv[2:]))
+    if len(sys.argv) > 1 and sys.argv[1] == "--internal-run-any4-health":
+        raise SystemExit(_run_internal_any4_health_cli(sys.argv[2:]))
+    if len(sys.argv) > 1 and sys.argv[1] == "--internal-build-info":
+        raise SystemExit(_run_internal_build_info_cli(sys.argv[2:]))
     ft.app(target=main)

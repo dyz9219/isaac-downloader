@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import tempfile
 import zipfile
@@ -16,6 +17,13 @@ def run_rosbag_task(task: TaskPlan, options: ConversionOptions) -> None:
     try:
         dataset = load_agibot_dataset(source_dir, fps_fallback=float(options.fps))
         frame_count = dataset.joint_position.shape[0]
+        image_mode = os.environ.get("AGIBOT_ROSBAG_IMAGE_MODE", "compressed").strip().lower()
+        use_compressed = image_mode != "raw"
+        jpeg_quality = int(os.environ.get("AGIBOT_ROSBAG_JPEG_QUALITY", "75") or "75")
+        if use_compressed:
+            task.reasons.append(f"Rosbag 图像模式: compressed(jpeg_quality={max(1, min(100, jpeg_quality))})")
+        else:
+            task.reasons.append("Rosbag 图像模式: raw")
         mapper: RosMessageMapper
 
         with HighLevelRosbagWriter(task.output_dir, options.bag_type) as writer:
@@ -26,8 +34,9 @@ def run_rosbag_task(task: TaskPlan, options: ConversionOptions) -> None:
 
             camera_conns: dict[str, tuple[object, cv2.VideoCapture]] = {}
             for camera_name, video_path in dataset.camera_videos.items():
-                topic = mapper.image_topic(camera_name)
-                conn = writer.add_topic(topic, "sensor_msgs/msg/Image")
+                topic = mapper.image_topic(camera_name, compressed=use_compressed)
+                image_msgtype = "sensor_msgs/msg/CompressedImage" if use_compressed else "sensor_msgs/msg/Image"
+                conn = writer.add_topic(topic, image_msgtype)
                 cap = cv2.VideoCapture(str(video_path))
                 if not cap.isOpened():
                     continue
@@ -50,8 +59,12 @@ def run_rosbag_task(task: TaskPlan, options: ConversionOptions) -> None:
                         ok, frame = cap.read()
                         if not ok:
                             continue
-                        image_msg = mapper.build_image(ts_ns, idx, camera_name, frame)
-                        writer.write_message(conn, image_msg, ts_ns, "sensor_msgs/msg/Image")
+                        if use_compressed:
+                            image_msg = mapper.build_compressed_image(ts_ns, idx, camera_name, frame, jpeg_quality=jpeg_quality)
+                            writer.write_message(conn, image_msg, ts_ns, "sensor_msgs/msg/CompressedImage")
+                        else:
+                            image_msg = mapper.build_image(ts_ns, idx, camera_name, frame)
+                            writer.write_message(conn, image_msg, ts_ns, "sensor_msgs/msg/Image")
             finally:
                 for _, cap in camera_conns.values():
                     cap.release()

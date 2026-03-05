@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,8 +33,12 @@ def write_manifest(
         "adapter_workdir": task.adapter_workdir,
         "runtime_mode": task.runtime_mode,
         "runtime_diagnostic": task.runtime_diagnostic,
+        "path_strategy": task.path_strategy,
+        "path_risk_level": task.path_risk_level,
+        "path_risk_reason": task.path_risk_reason,
+        "stage_workdir": task.stage_workdir,
         "error_details": task.error_details,
-        "written_at": datetime.now(timezone.utc).isoformat(),
+        "written_at": datetime.now().astimezone().isoformat(),
         "task": _json_safe(asdict(task)),
     }
     task.output_dir.mkdir(parents=True, exist_ok=True)

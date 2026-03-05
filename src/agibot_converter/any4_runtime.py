@@ -5,6 +5,17 @@ import sys
 from pathlib import Path
 
 
+def is_force_bundled_enabled() -> bool:
+    raw = os.environ.get("AGIBOT_FORCE_BUNDLED", "").strip().lower()
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    # Default behavior for packaged EXE: force bundled runtime to avoid
+    # accidental fallback to local Python environments on developer machines.
+    return bool(getattr(sys, "frozen", False))
+
+
 def _resolve_env_python(name: str) -> Path | None:
     env_py = os.environ.get(name, "").strip()
     if env_py:
@@ -54,6 +65,11 @@ def find_any4_python() -> Path | None:
 
 
 def find_any4_python_for_version(version: str) -> Path | None:
+    # Debug switch: force bundled any4 runtime path in packaged app,
+    # so local machine can reproduce "no external python runtime" behavior.
+    if version in {"v3.0", "v2.1", "v2.0"} and is_force_bundled_enabled():
+        return None
+
     if version == "v2.0":
         p = _resolve_env_python("ANY4_RUNTIME_V21_PYTHON")
         if p is not None:

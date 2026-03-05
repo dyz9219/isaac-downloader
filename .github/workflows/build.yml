@@ -2,8 +2,15 @@ name: Build Multi-Platform
 
 on:
   push:
+    branches:
+      - main
+      - master
     tags:
       - 'v*'
+  pull_request:
+    branches:
+      - main
+      - master
   workflow_dispatch:  # Manual trigger
 
 jobs:
@@ -15,23 +22,29 @@ jobs:
           submodules: recursive
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install -e ".[dev]"
-      - name: Verify PyInstaller
+      - name: Verify environment
         run: |
           python -m pip show pyinstaller
           python -c "import PyInstaller,sys; print('PyInstaller', PyInstaller.__version__, 'Python', sys.executable)"
-      - name: Build exe
+      - name: Build full package
         run: |
-          python -m PyInstaller AgibotConverterShell.spec --noconfirm
+          ./scripts/build_exe.ps1 -Profile full -Clean
+      - name: Verify packaged any4
+        run: |
+          ./scripts/verify_packaged_any4.ps1 -DistRoot dist/AgibotConverterShell-full
+      - name: Verify build fingerprint
+        run: |
+          ./scripts/verify_build_fingerprint.ps1 -ExePath dist/AgibotConverterShell-full/AgibotConverterShell-full.exe
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AgibotConverterShell-Windows
-          path: dist/AgibotConverterShell/
+          name: AgibotConverterShell-Windows-full
+          path: dist/AgibotConverterShell-full/
 
   build-linux-x64:
     runs-on: ubuntu-latest

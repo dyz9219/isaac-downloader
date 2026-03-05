@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import zipfile
 from dataclasses import dataclass
@@ -69,8 +70,14 @@ def _materialize_raw_dir(source_path: Path, run_root: Path) -> Path:
     if source_path.is_file() and source_path.suffix.lower() == ".zip":
         raw_root = run_root / "raw"
         raw_root.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(source_path, "r") as zf:
-            zf.extractall(raw_root)
+        try:
+            with zipfile.ZipFile(source_path, "r") as zf:
+                zf.extractall(raw_root)
+        except (zipfile.BadZipFile, OSError) as exc:
+            raise RuntimeError(
+                "解压原始 zip 到适配目录失败。"
+                f" zip={source_path}; raw_root={raw_root}; winerror={getattr(exc, 'winerror', '')}; err={exc}"
+            ) from exc
         return _normalize_raw_dir(raw_root)
     return _normalize_raw_dir(source_path)
 
@@ -78,12 +85,27 @@ def _materialize_raw_dir(source_path: Path, run_root: Path) -> Path:
 def _normalize_raw_dir(path: Path) -> Path:
     if (path / "aligned_joints.h5").exists() and (path / "state.json").exists():
         return path
-    children = [p for p in path.iterdir() if p.is_dir()]
-    if len(children) == 1:
-        c = children[0]
-        if (c / "aligned_joints.h5").exists() and (c / "state.json").exists():
-            return c
-    raise RuntimeError(f"原始输入目录不完整，缺少 aligned_joints.h5/state.json: {path}")
+    candidates: list[Path] = []
+    try:
+        for h5 in path.rglob("aligned_joints.h5"):
+            parent = h5.parent
+            if (parent / "state.json").exists():
+                candidates.append(parent)
+    except OSError as exc:
+        raise RuntimeError(f"无法扫描原始输入目录: {path}; error={exc}") from exc
+
+    unique: list[Path] = []
+    seen: set[Path] = set()
+    for c in sorted(candidates, key=lambda p: (len(p.parts), str(p).lower())):
+        if c not in seen:
+            seen.add(c)
+            unique.append(c)
+
+    if not unique:
+        raise RuntimeError(f"原始输入目录不完整，缺少 aligned_joints.h5/state.json: {path}")
+
+    # If multiple candidates exist, prefer the shallowest path to keep behavior deterministic.
+    return unique[0]
 
 
 def _build_min_any4_dataset(raw_dir: Path, dst_root: Path, source_name: str) -> list[str]:
@@ -141,7 +163,25 @@ def _build_videos(raw_dir: Path, videos_dir: Path, warnings: list[str]) -> None:
         src = raw_map.get(key, fallback)
         if key not in raw_map:
             warnings.append(f"视频键 {key} 缺失，使用 {src.name} 代替")
-        shutil.copy2(src, videos_dir / f"{key}_color.mp4")
+        _copy_or_link(src, videos_dir / f"{key}_color.mp4")
+
+
+def _copy_or_link(src: Path, dst: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if dst.exists():
+        dst.unlink(missing_ok=True)
+    try:
+        os.link(src, dst)
+        return
+    except OSError:
+        pass
+    try:
+        shutil.copy2(src, dst)
+    except OSError as exc:
+        raise RuntimeError(
+            "复制视频文件失败。"
+            f" src={src}; dst={dst}; winerror={getattr(exc, 'winerror', '')}; err={exc}"
+        ) from exc
 
 
 def _build_proprio_stats(src_h5: Path, dst_h5: Path, warnings: list[str]) -> None:

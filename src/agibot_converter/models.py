@@ -28,7 +28,7 @@ class ConversionOptions:
     fps: int = 30
     bag_type: str = "MCAP"
     concurrency: int = 4
-    conflict_policy: str = "skip"
+    conflict_policy: str = "block"
     retry_limit: int = 1
 
 
@@ -53,6 +53,10 @@ class TaskPlan:
     runtime_mode: str = ""
     runtime_diagnostic: str = ""
     error_details: list[str] = field(default_factory=list)
+    path_strategy: str = ""
+    path_risk_level: str = ""
+    path_risk_reason: str = ""
+    stage_workdir: str = ""
 
 
 @dataclass(slots=True)

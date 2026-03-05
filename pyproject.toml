@@ -18,6 +18,7 @@ dependencies = [
   "ray[default]>=2.9",
   "torch>=2.0",
   "lerobot>=0.1",
+  "jsonlines>=4.0",
   "pillow>=10.0"
 ]
 
