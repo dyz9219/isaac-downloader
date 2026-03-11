@@ -3,12 +3,13 @@
   "outputfilename": "downloader",
   "frontend:install": "npm install",
   "frontend:build": "npm run build",
+  "icon": "build/appicon.png",
   "author": {
     "name": "Peking University"
   },
   "info": {
     "companyName": "Peking University",
-    "productName": "Isaac Downloader",
+    "productName": "downloader",
     "productVersion": "1.0.0"
   }
 }
