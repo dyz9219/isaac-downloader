@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -126,5 +127,93 @@ func TestLoadScriptRealScript(t *testing.T) {
 	}
 	if len(tasks) > 0 && tasks[0].FileCount != 5 {
 		t.Errorf("期望文件数 5，实际: %d", tasks[0].FileCount)
+	}
+}
+
+func TestLoadScriptShellScript(t *testing.T) {
+	scriptContent := `#!/bin/bash
+FILES_JSON='{"tasks":[{"files":[{"path":"真机真机_2019353507798704130_20260311_103722/custom_task_pick_the_fruit_20260205182414.zip","url":"http://example.com/file.zip?X-Amz-Date=20260311T023722Z__AMP__X-Amz-Signature=abc"}],"taskId":2019353507798704130}]}'
+
+echo "$FILES_JSON" | grep -oE '\{"(url|path)":"[^"]+","(url|path)":"[^"]+"\}' | {
+while IFS= read -r file_entry; do
+    tmp_url=$(printf '%s' "$file_entry" | sed -n 's/.*"url":"\([^"]*\)".*/\1/p')
+done
+}`
+
+	scriptPath := filepath.Join(t.TempDir(), "下载任务.sh")
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0o644); err != nil {
+		t.Fatalf("写入测试脚本失败: %v", err)
+	}
+
+	app := NewApp()
+	info, err := app.LoadScript(scriptPath)
+	if err != nil {
+		t.Fatalf("加载 shell 脚本失败: %v", err)
+	}
+
+	if info.TotalTasks != 1 {
+		t.Fatalf("期望任务数 1，实际: %d", info.TotalTasks)
+	}
+	if info.TotalFiles != 1 {
+		t.Fatalf("期望文件数 1，实际: %d", info.TotalFiles)
+	}
+
+	tasks := app.GetTasks()
+	if len(tasks) != 1 {
+		t.Fatalf("期望 1 个任务，实际: %d", len(tasks))
+	}
+
+	if tasks[0].TaskName != "真机真机" {
+		t.Fatalf("期望任务名 真机真机，实际: %s", tasks[0].TaskName)
+	}
+}
+
+func TestLoadScriptShellScriptErrorMessage(t *testing.T) {
+	scriptPath := filepath.Join(t.TempDir(), "broken.sh")
+	if err := os.WriteFile(scriptPath, []byte("#!/bin/bash\necho hello\n"), 0o644); err != nil {
+		t.Fatalf("写入测试脚本失败: %v", err)
+	}
+
+	app := NewApp()
+	_, err := app.LoadScript(scriptPath)
+	if err == nil {
+		t.Fatal("期望加载失败，但实际成功")
+	}
+
+	if !strings.Contains(err.Error(), "Shell 脚本未找到 JSON 配置") {
+		t.Fatalf("期望错误包含 shell 类型提示，实际: %v", err)
+	}
+}
+
+func TestLoadScriptPowerShellScript(t *testing.T) {
+	scriptContent := `$FilesJson = '{"tasks":[{"files":[{"path":"Windows任务_2019353507798704130_20260311_103722/custom_task_pick_the_fruit_20260205182414.zip","url":"http://example.com/file.zip?X-Amz-Date=20260311T023722Z__AMP__X-Amz-Signature=abc"}],"taskId":2019353507798704130}]}'
+Write-Host "ready"
+`
+
+	scriptPath := filepath.Join(t.TempDir(), "下载任务.ps1")
+	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0o644); err != nil {
+		t.Fatalf("写入测试脚本失败: %v", err)
+	}
+
+	app := NewApp()
+	info, err := app.LoadScript(scriptPath)
+	if err != nil {
+		t.Fatalf("加载 PowerShell 脚本失败: %v", err)
+	}
+
+	if info.TotalTasks != 1 {
+		t.Fatalf("期望任务数 1，实际: %d", info.TotalTasks)
+	}
+	if info.TotalFiles != 1 {
+		t.Fatalf("期望文件数 1，实际: %d", info.TotalFiles)
+	}
+
+	tasks := app.GetTasks()
+	if len(tasks) != 1 {
+		t.Fatalf("期望 1 个任务，实际: %d", len(tasks))
+	}
+
+	if tasks[0].TaskName != "Windows任务" {
+		t.Fatalf("期望任务名 Windows任务，实际: %s", tasks[0].TaskName)
 	}
 }
